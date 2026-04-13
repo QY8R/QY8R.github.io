@@ -1,0 +1,1335 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rolimons Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   ROLIMONS TRACKER — WEB APP
+   Aesthetic: terminal-meets-luxury, monospace data grid
+   ============================================================ */
+:root {
+  --bg:       #080b0f;
+  --bg2:      #0d1219;
+  --bg3:      #121820;
+  --border:   #1e2a36;
+  --border2:  #2a3a4a;
+  --cyan:     #00e5ff;
+  --cyan-dim: #00e5ff22;
+  --cyan-mid: #00e5ff55;
+  --green:    #00ff88;
+  --red:      #ff3355;
+  --amber:    #ffaa00;
+  --text:     #c8d8e8;
+  --text-dim: #4a6070;
+  --text-mid: #8a9aaa;
+  --mono:     'Space Mono', monospace;
+  --sans:     'Syne', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ---- GRID BACKGROUND ---- */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 40px 40px;
+  opacity: 0.3;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ---- SCAN LINE ---- */
+body::after {
+  content: '';
+  position: fixed;
+  top: -100%;
+  left: 0;
+  right: 0;
+  height: 200px;
+  background: linear-gradient(transparent, rgba(0,229,255,0.03), transparent);
+  animation: scan 8s linear infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+@keyframes scan { to { top: 110%; } }
+
+/* ---- LAYOUT ---- */
+.container {
+  position: relative;
+  z-index: 1;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 20px 60px;
+}
+
+/* ---- HEADER ---- */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28px 0 24px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 32px;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.logo-mark {
+  width: 42px; height: 42px;
+  border: 1px solid var(--cyan);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--sans);
+  font-weight: 800;
+  font-size: 20px;
+  color: var(--cyan);
+  box-shadow: 0 0 20px var(--cyan-dim), inset 0 0 20px var(--cyan-dim);
+  flex-shrink: 0;
+}
+
+.brand-text h1 {
+  font-family: var(--sans);
+  font-weight: 800;
+  font-size: 20px;
+  color: #fff;
+  letter-spacing: -0.5px;
+}
+.brand-text span {
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.header-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.status-led {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+  animation: blink 2s ease-in-out infinite;
+}
+.status-led.paused { background: var(--text-dim); box-shadow: none; animation: none; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* ---- TABS ---- */
+.tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+
+.tab-btn {
+  padding: 10px 18px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+
+/* ---- PANELS ---- */
+.panel { display: none; animation: fadeIn 0.2s ease; }
+.panel.active { display: block; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
+
+/* ---- SECTION LABEL ---- */
+.sec-label {
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sec-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ---- TRACKED ITEMS GRID ---- */
+.items-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 80px;
+}
+
+.item-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 14px;
+  transition: border-color 0.2s;
+}
+.item-row:hover { border-color: var(--border2); }
+
+.item-row-info { min-width: 0; }
+.item-name {
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 14px;
+  color: #e8f4ff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.item-name .alert-tag {
+  font-size: 10px;
+  color: var(--cyan);
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.item-meta {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 3px;
+}
+.item-rap {
+  font-size: 12px;
+  color: var(--cyan);
+  font-weight: 700;
+}
+
+.item-row-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+/* ---- HISTORY ---- */
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.history-entry {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 14px;
+}
+.history-name { font-weight: 700; color: #e8f4ff; font-size: 13px; }
+.history-meta { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+.history-price {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--green);
+  white-space: nowrap;
+  text-align: right;
+}
+.history-rap { font-size: 10px; color: var(--text-dim); }
+
+/* ---- EMPTY STATE ---- */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 0;
+  color: var(--text-dim);
+  text-align: center;
+}
+.empty-icon { font-size: 32px; margin-bottom: 4px; opacity: 0.5; }
+.empty p { font-family: var(--sans); font-size: 13px; color: var(--text-mid); }
+.empty span { font-size: 11px; }
+
+/* ---- FORM ELEMENTS ---- */
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.field-label {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.field-hint { font-size: 11px; color: var(--text-dim); }
+.field-hint strong { color: var(--cyan); }
+
+.input {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  width: 100%;
+}
+.input:focus {
+  border-color: var(--cyan-mid);
+  box-shadow: 0 0 0 3px var(--cyan-dim);
+}
+.input::placeholder { color: var(--text-dim); }
+
+select.input { cursor: pointer; }
+
+/* ---- BUTTONS ---- */
+.btn {
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  transition: all 0.2s;
+  text-decoration: none;
+}
+.btn-primary {
+  background: var(--cyan);
+  color: var(--bg);
+}
+.btn-primary:hover { box-shadow: 0 0 20px var(--cyan-mid); transform: translateY(-1px); }
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border2);
+  color: var(--text-mid);
+}
+.btn-ghost:hover { border-color: var(--text-mid); color: var(--text); }
+.btn-danger {
+  background: transparent;
+  border: 1px solid #3d1520;
+  color: var(--red);
+}
+.btn-danger:hover { background: #3d152022; }
+.btn-sm {
+  padding: 6px 10px;
+  font-size: 11px;
+  border-radius: 5px;
+}
+.btn-icon {
+  width: 30px; height: 30px;
+  padding: 0;
+  border-radius: 5px;
+  font-size: 13px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+}
+.btn-icon:hover { border-color: var(--border2); color: var(--text); }
+.btn-icon.del:hover { border-color: var(--red); color: var(--red); background: #3d152022; }
+.w100 { width: 100%; }
+
+/* ---- FEEDBACK ---- */
+.feedback {
+  padding: 9px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 8px;
+}
+.feedback.success { background: #003322; border: 1px solid #00884433; color: var(--green); }
+.feedback.error { background: #2d0010; border: 1px solid #ff335533; color: var(--red); }
+.feedback.hidden { display: none; }
+
+/* ---- SETTINGS ---- */
+.settings-block {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.settings-block-title {
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--cyan);
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.setting-row:last-child { border-bottom: none; }
+.setting-info { flex: 1; }
+.setting-name { font-size: 13px; color: var(--text); }
+.setting-desc { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+/* Toggle */
+.toggle { position: relative; width: 36px; height: 20px; cursor: pointer; flex-shrink: 0; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+  position: absolute; inset: 0;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 20px;
+  transition: 0.25s;
+}
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 12px; height: 12px;
+  left: 3px; bottom: 3px;
+  background: var(--text-dim);
+  border-radius: 50%;
+  transition: 0.25s;
+}
+.toggle input:checked + .toggle-slider { background: var(--cyan-dim); border-color: var(--cyan-mid); }
+.toggle input:checked + .toggle-slider::before { transform: translateX(16px); background: var(--cyan); }
+
+/* Ntfy config */
+.ntfy-row {
+  display: flex;
+  align-items: center;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 10px 0;
+}
+.ntfy-prefix {
+  padding: 10px 10px;
+  font-size: 12px;
+  color: var(--text-dim);
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.ntfy-input {
+  border: none !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  flex: 1;
+}
+.ntfy-input:focus { box-shadow: none !important; }
+
+/* Radio group */
+.radio-group { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.radio-opt {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--text); cursor: pointer;
+}
+.radio-opt input { accent-color: var(--cyan); cursor: pointer; }
+
+/* Alert badge */
+.alert-badge {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-bottom: 6px;
+}
+.alert-badge-name { font-weight: 700; font-size: 13px; color: var(--text); }
+.alert-badge-info { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+.alert-chip {
+  font-size: 10px; padding: 3px 8px; border-radius: 20px;
+  background: var(--cyan-dim);
+  color: var(--cyan);
+  border: 1px solid var(--cyan-mid);
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Tip */
+.tip {
+  background: var(--cyan-dim);
+  border: 1px solid var(--cyan-mid);
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--text-mid);
+  line-height: 1.6;
+  margin-top: 12px;
+}
+.tip strong { color: var(--cyan); }
+
+/* Polling indicator */
+.poll-bar {
+  height: 2px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+.poll-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--cyan), var(--green));
+  border-radius: 2px;
+  transition: width 1s linear;
+}
+
+/* Stats strip */
+.stats-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.stat-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  text-align: center;
+}
+.stat-val {
+  font-family: var(--sans);
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--cyan);
+  display: block;
+}
+.stat-lbl {
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-top: 3px;
+  display: block;
+}
+
+/* Pause controls */
+.control-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+/* Footer */
+.footer {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-dim);
+  z-index: 10;
+  letter-spacing: 0.5px;
+}
+.footer-right { display: flex; align-items: center; gap: 16px; }
+
+/* Notification toast */
+.toast-container {
+  position: fixed;
+  top: 20px; right: 20px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.toast {
+  background: var(--bg2);
+  border: 1px solid var(--cyan-mid);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 12px;
+  color: var(--text);
+  box-shadow: 0 4px 20px rgba(0,229,255,0.15);
+  transform: translateX(120%);
+  transition: transform 0.3s ease;
+  max-width: 300px;
+  pointer-events: all;
+}
+.toast.show { transform: translateX(0); }
+.toast-title { font-weight: 700; color: var(--cyan); margin-bottom: 3px; }
+.toast.sale { border-color: #00ff8855; }
+.toast.sale .toast-title { color: var(--green); }
+
+/* Row utils */
+.row { display: flex; gap: 8px; }
+.flex1 { flex: 1; }
+.mt12 { margin-top: 12px; }
+.mb12 { margin-bottom: 12px; }
+
+/* Responsive */
+@media (max-width: 600px) {
+  .stats-strip { grid-template-columns: repeat(3, 1fr); }
+  .stat-val { font-size: 18px; }
+  .header { padding: 20px 0 16px; }
+}
+</style>
+</head>
+<body>
+<div class="toast-container" id="toast-container"></div>
+
+<div class="container">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-brand">
+      <div class="logo-mark">R</div>
+      <div class="brand-text">
+        <h1>Rolimons Tracker</h1>
+        <span>Limited Item Monitor v2</span>
+      </div>
+    </div>
+    <div class="header-status">
+      <div class="status-led" id="status-led"></div>
+      <span id="status-text">ACTIF</span>
+    </div>
+  </header>
+
+  <!-- POLL PROGRESS BAR -->
+  <div class="poll-bar"><div class="poll-bar-fill" id="poll-bar" style="width:0%"></div></div>
+
+  <!-- STATS -->
+  <div class="stats-strip">
+    <div class="stat-card">
+      <span class="stat-val" id="stat-items">0</span>
+      <span class="stat-lbl">Items suivis</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-val" id="stat-sales">0</span>
+      <span class="stat-lbl">Ventes détectées</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-val" id="stat-next">—</span>
+      <span class="stat-lbl">Prochain poll</span>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="tracked">Suivis</button>
+    <button class="tab-btn" data-tab="history">Historique</button>
+    <button class="tab-btn" data-tab="add">Ajouter</button>
+    <button class="tab-btn" data-tab="alerts">Alertes Prix</button>
+    <button class="tab-btn" data-tab="settings">Réglages</button>
+  </nav>
+
+  <!-- ===== PANEL: SUIVIS ===== -->
+  <div class="panel active" id="panel-tracked">
+    <div class="sec-label">Items surveillés</div>
+    <div class="control-bar">
+      <button class="btn btn-ghost btn-sm" id="pause-btn">⏸ Pause</button>
+      <button class="btn btn-ghost btn-sm" id="force-poll-btn">🔄 Vérifier maintenant</button>
+    </div>
+    <div class="items-grid" id="tracked-list"></div>
+  </div>
+
+  <!-- ===== PANEL: HISTORIQUE ===== -->
+  <div class="panel" id="panel-history">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div class="sec-label" style="margin:0">Ventes détectées</div>
+      <button class="btn btn-ghost btn-sm" id="clear-history-btn">Effacer tout</button>
+    </div>
+    <div class="history-list" id="history-list"></div>
+  </div>
+
+  <!-- ===== PANEL: AJOUTER ===== -->
+  <div class="panel" id="panel-add">
+    <div class="sec-label">Suivre un nouvel item</div>
+    <div class="field">
+      <label class="field-label">ID Rolimons</label>
+      <input type="text" id="item-id-input" class="input" placeholder="Ex: 1029959" />
+      <span class="field-hint">Trouve l'ID dans l'URL : rolimons.com/item/<strong>1029959</strong></span>
+    </div>
+    <div class="field">
+      <label class="field-label">Nom affiché</label>
+      <input type="text" id="item-name-input" class="input" placeholder="Ex: Dominus Empyreus" />
+    </div>
+    <button class="btn btn-primary w100" id="add-btn">+ Activer le suivi</button>
+    <div class="feedback hidden" id="add-feedback"></div>
+    <div class="tip mt12">
+      <strong>Comment trouver l'ID :</strong> Va sur rolimons.com, cherche ton item, l'ID est dans l'URL après /item/.
+    </div>
+  </div>
+
+  <!-- ===== PANEL: ALERTES PRIX ===== -->
+  <div class="panel" id="panel-alerts">
+    <div class="sec-label">Alertes de prix personnalisées</div>
+    <div class="field">
+      <label class="field-label">Item à surveiller</label>
+      <select class="input" id="alert-select">
+        <option value="">-- Choisir un item suivi --</option>
+      </select>
+    </div>
+    <div id="alert-config" style="display:none">
+      <div class="field">
+        <label class="field-label">Déclencher quand le prix…</label>
+        <div class="radio-group">
+          <label class="radio-opt"><input type="radio" name="alert-type" value="above" checked> Monte au-dessus de</label>
+          <label class="radio-opt"><input type="radio" name="alert-type" value="below"> Descend en-dessous de</label>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Seuil en R$</label>
+        <input type="number" id="alert-value" class="input" placeholder="Ex: 50000" min="0" />
+      </div>
+      <div class="row">
+        <button class="btn btn-primary flex1" id="save-alert-btn">Sauvegarder</button>
+        <button class="btn btn-danger flex1" id="remove-alert-btn">Supprimer</button>
+      </div>
+      <div class="feedback hidden" id="alert-feedback"></div>
+    </div>
+    <div id="alerts-list" class="mt12"></div>
+  </div>
+
+  <!-- ===== PANEL: RÉGLAGES ===== -->
+  <div class="panel" id="panel-settings">
+    <div class="sec-label">Configuration</div>
+
+    <div class="settings-block">
+      <div class="settings-block-title">Notifications navigateur (PC)</div>
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-name">Alertes de ventes</div>
+          <div class="setting-desc">Notification du navigateur à chaque vente</div>
+        </div>
+        <label class="toggle"><input type="checkbox" id="set-notif-sales" checked><span class="toggle-slider"></span></label>
+      </div>
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-name">Alertes de prix</div>
+          <div class="setting-desc">Notification quand un seuil de prix est atteint</div>
+        </div>
+        <label class="toggle"><input type="checkbox" id="set-notif-price" checked><span class="toggle-slider"></span></label>
+      </div>
+      <div class="setting-row" style="border:none;padding-bottom:0">
+        <span style="font-size:11px;color:var(--text-dim)">Les notifications nécessitent que la page soit ouverte dans un onglet.</span>
+      </div>
+      <button class="btn btn-ghost btn-sm w100 mt12" id="test-notif-btn">Tester les notifications</button>
+      <div class="feedback hidden" id="notif-feedback"></div>
+    </div>
+
+    <div class="settings-block">
+      <div class="settings-block-title">Notifications téléphone (Ntfy)</div>
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-name">Activer Ntfy</div>
+          <div class="setting-desc">Recevoir les alertes sur ton téléphone via ntfy.sh</div>
+        </div>
+        <label class="toggle"><input type="checkbox" id="set-ntfy-enabled"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="ntfy-row">
+        <span class="ntfy-prefix">ntfy.sh/</span>
+        <input type="text" id="set-ntfy-topic" class="input ntfy-input" placeholder="rolimons" value="rolimons" />
+      </div>
+      <button class="btn btn-primary btn-sm w100" id="test-ntfy-btn">Tester notification téléphone</button>
+      <div class="feedback hidden" id="ntfy-feedback"></div>
+    </div>
+
+    <div class="settings-block">
+      <div class="settings-block-title">Polling</div>
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-name">Intervalle de vérification</div>
+        </div>
+        <select class="input" id="set-interval" style="width:auto">
+          <option value="30000">30 sec</option>
+          <option value="60000" selected>1 min</option>
+          <option value="120000">2 min</option>
+          <option value="300000">5 min</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="btn btn-danger w100" id="clear-all-btn">Supprimer tous les items suivis</button>
+  </div>
+
+</div>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <span>ROLIMONS TRACKER • DONNÉES LOCALES • <span id="footer-count">0 items</span></span>
+  <div class="footer-right">
+    <span id="footer-last-poll">Jamais vérifié</span>
+    <a href="https://www.rolimons.com" target="_blank" style="color:var(--cyan);text-decoration:none">rolimons.com ↗</a>
+  </div>
+</footer>
+
+<script>
+// ============================================================
+// ROLIMONS TRACKER — WEB APP JS
+// ============================================================
+
+// ---- STATE ----
+let state = {
+  trackedItems: [],
+  saleHistory: [],
+  priceAlerts: {},
+  lastRapData: {},
+  lastSaleIds: new Set(),
+  settings: {
+    notifSales: true,
+    notifPrice: true,
+    ntfyEnabled: false,
+    ntfyTopic: 'rolimons',
+    interval: 60000
+  },
+  paused: false,
+  totalSalesDetected: 0,
+  pollTimer: null,
+  countdownTimer: null,
+  nextPollAt: null
+};
+
+// ---- STORAGE ----
+function save() {
+  localStorage.setItem('roli_tracked', JSON.stringify(state.trackedItems));
+  localStorage.setItem('roli_history', JSON.stringify(state.saleHistory));
+  localStorage.setItem('roli_alerts', JSON.stringify(state.priceAlerts));
+  localStorage.setItem('roli_rap', JSON.stringify(state.lastRapData));
+  localStorage.setItem('roli_settings', JSON.stringify(state.settings));
+  localStorage.setItem('roli_sales_count', String(state.totalSalesDetected));
+  localStorage.setItem('roli_sale_ids', JSON.stringify([...state.lastSaleIds].slice(0, 1000)));
+}
+
+function load() {
+  try { state.trackedItems   = JSON.parse(localStorage.getItem('roli_tracked') || '[]'); } catch(e){}
+  try { state.saleHistory    = JSON.parse(localStorage.getItem('roli_history') || '[]'); } catch(e){}
+  try { state.priceAlerts    = JSON.parse(localStorage.getItem('roli_alerts') || '{}'); } catch(e){}
+  try { state.lastRapData    = JSON.parse(localStorage.getItem('roli_rap') || '{}'); } catch(e){}
+  try { state.settings       = { ...state.settings, ...JSON.parse(localStorage.getItem('roli_settings') || '{}') }; } catch(e){}
+  try { state.totalSalesDetected = parseInt(localStorage.getItem('roli_sales_count') || '0'); } catch(e){}
+  try { state.lastSaleIds    = new Set(JSON.parse(localStorage.getItem('roli_sale_ids') || '[]')); } catch(e){}
+}
+
+// ---- INIT ----
+load();
+initUI();
+requestNotifPermission();
+startPolling();
+renderAll();
+
+// ---- TABS ----
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+    if (btn.dataset.tab === 'alerts') renderAlerts();
+    if (btn.dataset.tab === 'history') renderHistory();
+    if (btn.dataset.tab === 'tracked') renderTracked();
+  });
+});
+
+// ---- ADD ITEM ----
+document.getElementById('add-btn').addEventListener('click', addItem);
+document.getElementById('item-id-input').addEventListener('keydown', e => { if (e.key === 'Enter') addItem(); });
+
+function addItem() {
+  const raw = document.getElementById('item-id-input').value.trim();
+  const name = document.getElementById('item-name-input').value.trim();
+  const fb = document.getElementById('add-feedback');
+  const match = raw.match(/\d{4,}/);
+  if (!match) { showFeedback(fb, 'error', '⚠ ID invalide — entre un nombre (ex: 1029959)'); return; }
+  const id = match[0];
+  if (state.trackedItems.find(i => i.id === id)) { showFeedback(fb, 'error', '⚠ Cet item est déjà suivi'); return; }
+  state.trackedItems.push({ id, name: name || `Item #${id}`, addedAt: Date.now() });
+  save();
+  showFeedback(fb, 'success', `✓ "${name || `Item #${id}`}" ajouté au suivi !`);
+  document.getElementById('item-id-input').value = '';
+  document.getElementById('item-name-input').value = '';
+  updateStats();
+  setTimeout(() => {
+    document.querySelector('[data-tab="tracked"]').click();
+  }, 1200);
+}
+
+// ---- PAUSE ----
+document.getElementById('pause-btn').addEventListener('click', () => {
+  state.paused = !state.paused;
+  const btn = document.getElementById('pause-btn');
+  const led = document.getElementById('status-led');
+  const txt = document.getElementById('status-text');
+  btn.textContent = state.paused ? '▶ Reprendre' : '⏸ Pause';
+  led.classList.toggle('paused', state.paused);
+  txt.textContent = state.paused ? 'EN PAUSE' : 'ACTIF';
+  if (!state.paused) restartPolling();
+});
+
+// ---- FORCE POLL ----
+document.getElementById('force-poll-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('force-poll-btn');
+  btn.textContent = '⏳ Vérification…'; btn.disabled = true;
+  await poll();
+  btn.textContent = '✓ Fait !';
+  setTimeout(() => { btn.textContent = '🔄 Vérifier maintenant'; btn.disabled = false; }, 2000);
+});
+
+// ---- CLEAR HISTORY ----
+document.getElementById('clear-history-btn').addEventListener('click', () => {
+  state.saleHistory = [];
+  state.totalSalesDetected = 0;
+  save(); renderHistory(); updateStats();
+});
+
+// ---- CLEAR ALL ----
+document.getElementById('clear-all-btn').addEventListener('click', () => {
+  if (!confirm('Supprimer tous les items suivis ?')) return;
+  state.trackedItems = [];
+  state.lastRapData = {};
+  save(); renderTracked(); updateStats();
+});
+
+// ---- ALERTS ----
+document.getElementById('alert-select').addEventListener('change', () => {
+  const id = document.getElementById('alert-select').value;
+  const cfg = document.getElementById('alert-config');
+  cfg.style.display = id ? 'block' : 'none';
+  if (!id) return;
+  const existing = state.priceAlerts[id];
+  if (existing) {
+    document.querySelector(`input[name="alert-type"][value="${existing.type}"]`).checked = true;
+    document.getElementById('alert-value').value = existing.value;
+  } else {
+    document.querySelector('input[name="alert-type"][value="above"]').checked = true;
+    document.getElementById('alert-value').value = '';
+  }
+});
+
+document.getElementById('save-alert-btn').addEventListener('click', () => {
+  const id = document.getElementById('alert-select').value;
+  const type = document.querySelector('input[name="alert-type"]:checked').value;
+  const value = parseInt(document.getElementById('alert-value').value);
+  const fb = document.getElementById('alert-feedback');
+  if (!id) { showFeedback(fb, 'error', 'Choisis un item'); return; }
+  if (!value || value <= 0) { showFeedback(fb, 'error', 'Entre un seuil valide'); return; }
+  state.priceAlerts[id] = { type, value };
+  save(); renderAlerts(); renderTracked();
+  showFeedback(fb, 'success', '✓ Alerte sauvegardée !');
+});
+
+document.getElementById('remove-alert-btn').addEventListener('click', () => {
+  const id = document.getElementById('alert-select').value;
+  if (!id) return;
+  delete state.priceAlerts[id];
+  save(); renderAlerts(); renderTracked();
+  document.getElementById('alert-select').value = '';
+  document.getElementById('alert-config').style.display = 'none';
+});
+
+// ---- SETTINGS ----
+document.getElementById('set-notif-sales').addEventListener('change', e => {
+  state.settings.notifSales = e.target.checked; save();
+});
+document.getElementById('set-notif-price').addEventListener('change', e => {
+  state.settings.notifPrice = e.target.checked; save();
+});
+document.getElementById('set-ntfy-enabled').addEventListener('change', e => {
+  state.settings.ntfyEnabled = e.target.checked; save();
+});
+document.getElementById('set-ntfy-topic').addEventListener('change', e => {
+  state.settings.ntfyTopic = e.target.value.trim(); save();
+});
+document.getElementById('set-interval').addEventListener('change', e => {
+  state.settings.interval = parseInt(e.target.value); save(); restartPolling();
+});
+document.getElementById('test-notif-btn').addEventListener('click', () => {
+  const fb = document.getElementById('notif-feedback');
+  if (Notification.permission !== 'granted') {
+    showFeedback(fb, 'error', '⚠ Notifications bloquées — clique sur le cadenas dans la barre d\'adresse');
+    return;
+  }
+  new Notification('Rolimons Tracker', { body: 'Les notifications fonctionnent !', icon: 'https://www.rolimons.com/favicon.ico' });
+  showFeedback(fb, 'success', '✓ Notification envoyée !');
+});
+document.getElementById('test-ntfy-btn').addEventListener('click', async () => {
+  const topic = document.getElementById('set-ntfy-topic').value.trim();
+  const fb = document.getElementById('ntfy-feedback');
+  const btn = document.getElementById('test-ntfy-btn');
+  if (!topic) { showFeedback(fb, 'error', '⚠ Entre un nom de canal'); return; }
+  state.settings.ntfyTopic = topic;
+  state.settings.ntfyEnabled = true;
+  document.getElementById('set-ntfy-enabled').checked = true;
+  save();
+  btn.textContent = '⏳ Envoi…'; btn.disabled = true;
+  try {
+    const r = await fetch(`https://ntfy.sh/${topic}`, {
+      method: 'POST',
+      headers: { 'Title': 'Rolimons Tracker connecte !', 'Priority': 'default', 'Tags': 'white_check_mark', 'Click': 'https://www.rolimons.com', 'Content-Type': 'text/plain' },
+      body: 'Les notifications fonctionnent sur ton telephone !'
+    });
+    if (r.ok) showFeedback(fb, 'success', '✓ Notif envoyée ! Vérifie ton téléphone.');
+    else showFeedback(fb, 'error', `Erreur ${r.status} — vérifie le canal`);
+  } catch(e) {
+    showFeedback(fb, 'error', 'Impossible de joindre ntfy.sh');
+  }
+  btn.textContent = 'Tester notification téléphone'; btn.disabled = false;
+});
+
+// ============================================================
+// POLLING ENGINE
+// ============================================================
+function startPolling() {
+  if (state.pollTimer) clearInterval(state.pollTimer);
+  state.pollTimer = setInterval(() => {
+    if (!state.paused) poll();
+  }, state.settings.interval);
+  startCountdown();
+  // Premier poll immédiat
+  if (!state.paused) setTimeout(poll, 1500);
+}
+
+function restartPolling() {
+  clearInterval(state.pollTimer);
+  clearInterval(state.countdownTimer);
+  startPolling();
+}
+
+function startCountdown() {
+  clearInterval(state.countdownTimer);
+  state.nextPollAt = Date.now() + state.settings.interval;
+  const bar = document.getElementById('poll-bar');
+
+  state.countdownTimer = setInterval(() => {
+    if (state.paused) return;
+    const remaining = Math.max(0, state.nextPollAt - Date.now());
+    const pct = 100 - (remaining / state.settings.interval * 100);
+    bar.style.width = pct + '%';
+    const secs = Math.ceil(remaining / 1000);
+    document.getElementById('stat-next').textContent = secs > 0 ? secs + 's' : '…';
+  }, 500);
+}
+
+async function poll() {
+  if (state.trackedItems.length === 0) return;
+  state.nextPollAt = Date.now() + state.settings.interval;
+
+  let saleFound = false;
+  try { saleFound = await pollSaleActivity(); } catch(e) { console.warn('[Tracker] saleactivity:', e.message); }
+  await pollRapChange(saleFound);
+
+  document.getElementById('footer-last-poll').textContent = 'Vérifié à ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  renderTracked();
+  updateStats();
+}
+
+// ---- METHODE 1: Sale Activity ----
+async function pollSaleActivity() {
+  const res = await fetch('https://api.rolimons.com/market/v1/saleactivity', {
+    headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://www.rolimons.com/' }
+  });
+  if (!res.ok) return false;
+  const json = await res.json();
+
+  const entries = json.sales || json.activities || json.data || json.feed || [];
+  if (!entries.length) return false;
+
+  const trackedIds = new Set(state.trackedItems.map(i => String(i.id)));
+  let found = false;
+  const newIds = [];
+
+  for (const entry of entries) {
+    let actId, itemId, price, oldRap, newRap;
+    if (Array.isArray(entry)) {
+      actId = String(entry[0] || '');
+      itemId = String(entry[1] || '');
+      price = Number(entry[4] || 0);
+      oldRap = Number(entry[5] || 0);
+      newRap = Number(entry[6] || 0);
+    } else {
+      actId = String(entry.id || entry.sale_id || Date.now());
+      itemId = String(entry.item_id || entry.asset_id || '');
+      price = Number(entry.price || 0);
+      oldRap = Number(entry.old_rap || 0);
+      newRap = Number(entry.new_rap || 0);
+    }
+    if (actId) newIds.push(actId);
+
+    if (trackedIds.has(itemId) && actId && !state.lastSaleIds.has(actId)) {
+      const item = state.trackedItems.find(i => String(i.id) === itemId);
+      if (!item) continue;
+      const displayPrice = price || newRap;
+      const rapChange = (oldRap && newRap) ? ` | RAP: ${oldRap.toLocaleString()} → ${newRap.toLocaleString()}` : '';
+      onSaleDetected(item, displayPrice, oldRap, newRap, rapChange);
+      found = true;
+    }
+  }
+
+  newIds.forEach(id => state.lastSaleIds.add(id));
+  if (state.lastSaleIds.size > 1000) {
+    state.lastSaleIds = new Set([...state.lastSaleIds].slice(-500));
+  }
+  save();
+  return found;
+}
+
+// ---- METHODE 2: RAP Change ----
+async function pollRapChange(saleAlreadyFound) {
+  try {
+    const res = await fetch('https://www.rolimons.com/itemapi/itemdetails', {
+      headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://www.rolimons.com/' }
+    });
+    if (!res.ok) return;
+    const json = await res.json();
+    const items = json.items || {};
+
+    for (const item of state.trackedItems) {
+      const id = String(item.id);
+      const data = items[id];
+      if (!data) continue;
+      const currentRap = Number(data[2]);
+      const prev = state.lastRapData[id];
+
+      // Mettre a jour le RAP affiche
+      state.lastRapData[id] = { rap: currentRap, ts: Date.now() };
+
+      if (!saleAlreadyFound && prev && prev.rap && currentRap !== prev.rap && currentRap > 0 && prev.rap > 0) {
+        const rapChange = ` | RAP: ${prev.rap.toLocaleString()} → ${currentRap.toLocaleString()}`;
+        onSaleDetected(item, currentRap, prev.rap, currentRap, rapChange);
+      }
+    }
+    save();
+  } catch(e) { console.warn('[Tracker] itemdetails:', e.message); }
+}
+
+// ---- ON SALE DETECTED ----
+function onSaleDetected(item, price, oldRap, newRap, rapChange) {
+  const entry = { itemId: item.id, itemName: item.name, price, rapBefore: oldRap, rapAfter: newRap, timestamp: Date.now() };
+  state.saleHistory.unshift(entry);
+  if (state.saleHistory.length > 150) state.saleHistory.splice(150);
+  state.totalSalesDetected++;
+  save();
+
+  const title = `Vente : ${item.name}`;
+  const body = (price ? price.toLocaleString() + ' R$' : 'Vendu') + (rapChange || '');
+
+  // Toast web
+  showToast(title, body, 'sale');
+
+  // Notification navigateur
+  if (state.settings.notifSales && Notification.permission === 'granted') {
+    new Notification(title, { body, icon: 'https://www.rolimons.com/favicon.ico', badge: 'https://www.rolimons.com/favicon.ico' });
+  }
+
+  // Ntfy
+  sendNtfy(title, body, `https://www.rolimons.com/item/${item.id}`);
+
+  // Alerte prix
+  if (price && state.priceAlerts[item.id] && state.settings.notifPrice) {
+    const pa = state.priceAlerts[item.id];
+    const hit = (pa.type === 'above' && price >= pa.value) || (pa.type === 'below' && price <= pa.value);
+    if (hit) {
+      const ptitle = `Alerte prix : ${item.name}`;
+      const pbody = `${price.toLocaleString()} R$ (seuil: ${pa.value.toLocaleString()})`;
+      showToast(ptitle, pbody, 'alert');
+      if (Notification.permission === 'granted') new Notification(ptitle, { body: pbody });
+      sendNtfy(ptitle, pbody, `https://www.rolimons.com/item/${item.id}`);
+    }
+  }
+
+  updateStats();
+}
+
+// ---- NTFY ----
+async function sendNtfy(title, message, url) {
+  if (!state.settings.ntfyEnabled || !state.settings.ntfyTopic) return;
+  try {
+    await fetch(`https://ntfy.sh/${state.settings.ntfyTopic}`, {
+      method: 'POST',
+      headers: { 'Title': title, 'Priority': 'high', 'Tags': 'bell', 'Click': url, 'Content-Type': 'text/plain' },
+      body: message
+    });
+  } catch(e) { console.warn('[Tracker] Ntfy:', e); }
+}
+
+// ---- BROWSER NOTIFICATIONS ----
+function requestNotifPermission() {
+  if (Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+
+// ============================================================
+// RENDER FUNCTIONS
+// ============================================================
+function renderAll() {
+  renderTracked();
+  renderHistory();
+  updateStats();
+  loadSettings();
+}
+
+function renderTracked() {
+  const list = document.getElementById('tracked-list');
+  if (state.trackedItems.length === 0) {
+    list.innerHTML = `<div class="empty"><div class="empty-icon">🔍</div><p>Aucun item suivi</p><span>Ajoute un item dans l'onglet "Ajouter"</span></div>`;
+    return;
+  }
+  list.innerHTML = '';
+  state.trackedItems.forEach(item => {
+    const rap = state.lastRapData[String(item.id)];
+    const hasAlert = state.priceAlerts[item.id];
+    const meta = rap?.ts ? `Vérifié ${timeAgo(rap.ts)}` : 'En attente du premier poll…';
+    const div = document.createElement('div');
+    div.className = 'item-row';
+    div.innerHTML = `
+      <div class="item-row-info">
+        <div class="item-name">${escHtml(item.name)}${hasAlert ? '<span class="alert-tag">⚡</span>' : ''}</div>
+        <div class="item-meta">${meta}${rap?.rap ? ` · <span class="item-rap">${Number(rap.rap).toLocaleString()} RAP</span>` : ''}</div>
+      </div>
+      <div class="item-row-actions">
+        <a href="https://www.rolimons.com/item/${item.id}" target="_blank" class="btn btn-icon" title="Voir sur Rolimons">🔗</a>
+        <button class="btn btn-icon del" title="Supprimer" data-remove="${item.id}">✕</button>
+      </div>`;
+    div.querySelector('[data-remove]').addEventListener('click', () => {
+      state.trackedItems = state.trackedItems.filter(i => i.id !== item.id);
+      delete state.lastRapData[item.id];
+      save(); renderTracked(); updateStats();
+    });
+    list.appendChild(div);
+  });
+}
+
+function renderHistory() {
+  const list = document.getElementById('history-list');
+  if (state.saleHistory.length === 0) {
+    list.innerHTML = `<div class="empty"><div class="empty-icon">📋</div><p>Aucune vente détectée</p><span>L'historique apparaîtra ici lors des prochains polls</span></div>`;
+    return;
+  }
+  list.innerHTML = state.saleHistory.map(h => {
+    const rapInfo = (h.rapBefore && h.rapAfter) ? `RAP: ${h.rapBefore.toLocaleString()} → ${h.rapAfter.toLocaleString()}` : '';
+    return `<div class="history-entry">
+      <div>
+        <div class="history-name">${escHtml(h.itemName)}</div>
+        <div class="history-meta">${formatDate(h.timestamp)}${rapInfo ? ` · ${rapInfo}` : ''}</div>
+      </div>
+      ${h.price ? `<div class="history-price">${h.price.toLocaleString()}<span class="history-rap"> R$</span></div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function renderAlerts() {
+  // Remplir le select
+  const sel = document.getElementById('alert-select');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">-- Choisir un item suivi --</option>' +
+    state.trackedItems.map(i => `<option value="${i.id}">${escHtml(i.name)}</option>`).join('');
+  if (cur) sel.value = cur;
+
+  // Liste des alertes actives
+  const list = document.getElementById('alerts-list');
+  const entries = Object.entries(state.priceAlerts);
+  if (entries.length === 0) { list.innerHTML = ''; return; }
+  list.innerHTML = '<div class="sec-label">Alertes actives</div>' +
+    entries.map(([id, a]) => {
+      const item = state.trackedItems.find(i => i.id === id);
+      const name = item ? item.name : `Item #${id}`;
+      return `<div class="alert-badge">
+        <div>
+          <div class="alert-badge-name">${escHtml(name)}</div>
+          <div class="alert-badge-info">Prix ${a.type === 'above' ? '≥' : '≤'} ${a.value.toLocaleString()} R$</div>
+        </div>
+        <span class="alert-chip">${a.type === 'above' ? '⬆ HAUSSE' : '⬇ BAISSE'}</span>
+      </div>`;
+    }).join('');
+}
+
+function updateStats() {
+  document.getElementById('stat-items').textContent = state.trackedItems.length;
+  document.getElementById('stat-sales').textContent = state.totalSalesDetected;
+  document.getElementById('footer-count').textContent = `${state.trackedItems.length} item${state.trackedItems.length !== 1 ? 's' : ''}`;
+}
+
+function loadSettings() {
+  document.getElementById('set-notif-sales').checked = state.settings.notifSales;
+  document.getElementById('set-notif-price').checked = state.settings.notifPrice;
+  document.getElementById('set-ntfy-enabled').checked = state.settings.ntfyEnabled;
+  document.getElementById('set-ntfy-topic').value = state.settings.ntfyTopic || 'rolimons';
+  document.getElementById('set-interval').value = String(state.settings.interval);
+}
+
+// ============================================================
+// TOAST NOTIFICATIONS
+// ============================================================
+function showToast(title, body, type = '') {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.innerHTML = `<div class="toast-title">${escHtml(title)}</div><div>${escHtml(body)}</div>`;
+  c.appendChild(t);
+  requestAnimationFrame(() => requestAnimationFrame(() => t.classList.add('show')));
+  setTimeout(() => {
+    t.classList.remove('show');
+    setTimeout(() => t.remove(), 400);
+  }, 5000);
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+function showFeedback(el, type, msg) {
+  el.className = `feedback ${type}`;
+  el.textContent = msg;
+  setTimeout(() => { el.className = 'feedback hidden'; }, 4000);
+}
+function escHtml(t) {
+  return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function timeAgo(ts) {
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60) return 'à l\'instant';
+  if (s < 3600) return `il y a ${Math.floor(s/60)} min`;
+  if (s < 86400) return `il y a ${Math.floor(s/3600)} h`;
+  return `il y a ${Math.floor(s/86400)} j`;
+}
+function formatDate(ts) {
+  return new Date(ts).toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+}
+</script>
+</body>
+</html>
